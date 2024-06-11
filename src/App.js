@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-
-function generarFixture(equipos) {
+import SinEscudo from './escudo.svg'
+function generarFixture(equipos, idaYVuelta = true) {
     const numEquipos = equipos.length;
-    const numFechas = numEquipos % 2 === 0 ? numEquipos - 1 : numEquipos; // Si el número de equipos es impar, necesitamos una fecha libre
+    const numFechas = numEquipos % 2 === 0 ? numEquipos - 1 : numEquipos;
     const numPartidosPorFecha = Math.floor(numEquipos / 2);
     const fixture = [];
-
+    
     for (let fecha = 0; fecha < numFechas; fecha++) {
         const partidos = [];
         for (let partido = 0; partido < numPartidosPorFecha; partido++) {
@@ -19,6 +19,14 @@ function generarFixture(equipos) {
         fixture.push({ fecha: fecha + 1, partidos });
     }
 
+    if (idaYVuelta) {
+        const fixtureVuelta = fixture.map((fecha) => ({
+            fecha: fecha.fecha + numFechas,
+            partidos: fecha.partidos.map(([local, visitante]) => [visitante, local]),
+        }));
+        return fixture.concat(fixtureVuelta);
+    }
+
     return fixture;
 }
 
@@ -29,30 +37,42 @@ function App() {
     const [fixture, setFixture] = useState([]);
     const [resultados, setResultados] = useState({});
     const [tabla, setTabla] = useState([]);
+    
+    const [idaYVuelta, setIdaYVuelta] = useState(false);
 
     const agregarEquipo = () => {
-        if (nuevoEquipo.trim() !== '' && nuevoEscudo) {
-            setEquipos([...equipos, { nombre: nuevoEquipo.trim(), escudo: nuevoEscudo }]);
+        if (nuevoEquipo.trim() !== '') {
+            const nuevoEquipoObj = {
+                nombre: nuevoEquipo.trim(),
+                escudo: nuevoEscudo ? nuevoEscudo : SinEscudo
+            };
+    
+            setEquipos([...equipos, nuevoEquipoObj]);
             setNuevoEquipo('');
             setNuevoEscudo(null);
         } else {
-            alert('Por favor ingrese el nombre del equipo y seleccione un escudo.');
+            alert('Por favor ingrese el nombre del equipo');
         }
     };
 
     const generarFixtureClick = () => {
         if (equipos.length > 1) {
             const nombresEquipos = equipos.map(equipo => equipo.nombre);
-            const nuevoFixture = generarFixture(nombresEquipos);
+            const nuevoFixture = generarFixture(nombresEquipos, idaYVuelta);
             setFixture(nuevoFixture);
         } else {
             alert('Debes ingresar al menos dos equipos.');
         }
     };
 
+    const handleCheckboxChange = () => {
+        setIdaYVuelta(!idaYVuelta);
+    };
+    
     const handleEscudoChange = (e) => {
         const file = e.target.files[0];
         const reader = new FileReader();
+
         reader.onloadend = () => {
             setNuevoEscudo(reader.result);
         };
@@ -120,19 +140,20 @@ function App() {
 
       setTabla(tablaTemporal);
   };
+
     return (
         <div className="w-[90vw] p-8 sm:max-w-[50vw] rounded-2xl bg-slate-800 m-10">
-            <h1 className="text-2xl font-bold mb-4 text-white">Generador de Fixture</h1>
-            <div className="flex mb-4 sm:flex-row flex-col gap-4">
+            <h1 className="mb-4 text-2xl font-bold text-white">Generador de Fixture</h1>
+            <div className="flex flex-col gap-4 mb-4 sm:flex-row">
               <input
                   type="text"
                   value={nuevoEquipo}
                   onChange={(e) => setNuevoEquipo(e.target.value)}
                   placeholder="Nombre del equipo"
-                  className="border p-2 flex-1"
+                  className="flex-1 p-2 border"
               />
 
-              <div className='bg-blue-500 text-white p-2 rounded text-center'>
+              <div className='p-2 text-center text-white bg-blue-700 rounded cursor-pointer hover:bg-blue-500'>
                   <input
                       type="file"
                       id="escudoUpload"
@@ -147,68 +168,92 @@ function App() {
                   </label>
               </div>
 
-              <button onClick={agregarEquipo} className="bg-blue-500 text-white p-2 rounded">
+              <button onClick={agregarEquipo} className="p-2 text-white bg-blue-700 rounded hover:bg-blue-500">
                   Agregar Equipo
               </button>
 
             </div>
-            <ul className="list-disc pl-5 mb-4">
+            <ul className="pl-5 mb-4 list-disc">
                 {equipos.map((equipo, index) => (
-                    <li key={index} className="mb-1 flex items-center">
+                    <li key={index} className="flex items-center mb-1">
                         {equipo.escudo && (
-                            <img src={equipo.escudo} alt={`${equipo.nombre} escudo`} className="w-8 h-8 mr-2" />
+                            <img src={equipo.escudo} alt={`${equipo.nombre} escudo`} className="w-8 mr-2" />
                         )}
                         {equipo.nombre}
                     </li>
                 ))}
             </ul>
-            <button onClick={generarFixtureClick} className="bg-green-500 text-white p-2 rounded">Generar Fixture</button>
+            <button onClick={generarFixtureClick} className="p-2 text-white bg-green-700 rounded hover:bg-green-500">Generar Fixture</button>
+            <label className="flex items-center mt-5">
+                    <input
+                        type="checkbox"
+                        checked={idaYVuelta}
+                        onChange={handleCheckboxChange}
+                        className="mr-2"
+                    />
+                    Ida y Vuelta
+            </label>
             {fixture.length > 0 && (
                 <div className="mt-8">
-                    {fixture.map(fecha => (
-                        <div key={fecha.fecha} className="mb-4">
-                            <h2 className="text-xl font-semibold">Fecha {fecha.fecha}</h2>
-                            <ul className="list-disc pl-5">
-                                {fecha.partidos.map((partido, index) => (
-                                    <li key={index} className="mb-1">
-                                        {equipos.find(equipo => equipo.nombre === partido[0]).escudo && (
-                                            <img
-                                                src={equipos.find(equipo => equipo.nombre === partido[0]).escudo}
-                                                alt={`${partido[0]} escudo`}
-                                                className="w-6 h-6 inline mr-2"
+                {fixture.map((fecha) => (
+                    <div key={fecha.fecha} className="mb-4">
+                        <h2 className="text-xl font-semibold">Fecha {fecha.fecha}</h2>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+
+                            <div className="mb-2 sm:mb-0">
+                                <ul className="pl-5 list-disc">
+                                    {fecha.partidos.map((partido, index) => (
+                                        <li key={index} className="mb-1">
+                                            {equipos.find((equipo) => equipo.nombre === partido[0]).escudo && (
+                                                <img
+                                                    src={equipos.find((equipo) => equipo.nombre === partido[0]).escudo}
+                                                    alt={`${partido[0]} escudo`}
+                                                    className="inline w-6 mr-2"
+                                                />
+                                            )}
+                                            {partido[0]} <span className='font-bold text-zinc-500'>VS</span>
+                                            {equipos.find((equipo) => equipo.nombre === partido[1]).escudo && (
+                                                <img
+                                                    src={equipos.find((equipo) => equipo.nombre === partido[1]).escudo}
+                                                    alt={`${partido[1]} escudo`}
+                                                    className="inline w-6 mx-2"
+                                                />
+                                            )}
+                                            {partido[1]}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+
+                            <div>
+                                <ul className="pl-5 list-disc">
+                                    {fecha.partidos.map((partido, index) => (
+                                        <li key={index} className="mb-1">
+                                            <input
+                                                type="number"
+                                                placeholder="Local"
+                                                className="w-16 p-1 mx-2 border"
+                                                onChange={(e) => handleResultadoChange(fecha.fecha, index, 'local', e.target.value)}
                                             />
-                                        )}
-                                        {partido[0]} vs 
-                                        {equipos.find(equipo => equipo.nombre === partido[1]).escudo && (
-                                            <img
-                                                src={equipos.find(equipo => equipo.nombre === partido[1]).escudo}
-                                                alt={`${partido[1]} escudo`}
-                                                className="w-6 h-6 inline mx-2"
+                                            <input
+                                                type="number"
+                                                placeholder="Visitante"
+                                                className="w-16 p-1 mx-2 border"
+                                                onChange={(e) => handleResultadoChange(fecha.fecha, index, 'visitante', e.target.value)}
                                             />
-                                        )}
-                                        {partido[1]}
-                                        <input
-                                            type="number"
-                                            placeholder="Local"
-                                            className="border p-1 mx-2 w-16"
-                                            onChange={(e) => handleResultadoChange(fecha.fecha, index, 'local', e.target.value)}
-                                        />
-                                        <input
-                                            type="number"
-                                            placeholder="Visitante"
-                                            className="border p-1 mx-2 w-16"
-                                            onChange={(e) => handleResultadoChange(fecha.fecha, index, 'visitante', e.target.value)}
-                                        />
-                                    </li>
-                                ))}
-                            </ul>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
                         </div>
-                    ))}
-                    <button onClick={calcularTabla} className="bg-blue-500 text-white p-2 rounded mt-4">Calcular Tabla General</button>
+                    </div>
+                ))}
+
+                    <button onClick={calcularTabla} className="p-2 mt-4 text-white bg-blue-700 rounded hover:bg-blue-500">Calcular Tabla General</button>
                     {tabla.length > 0 && (
-                        <div className="mt-8">
+                        <div className="mt-8 overflow-x-auto">
                             <h2 className="text-xl font-semibold">Tabla General</h2>
-                            <table className="min-w-full bg-slate-700">
+                            <table className="min-w-full rounded-lg bg-slate-700">
                                 <thead>
                                     <tr>
                                         <th className="py-2">Equipo</th>
@@ -225,15 +270,15 @@ function App() {
                                 <tbody>
                                     {tabla.sort((a, b) => b.puntos - a.puntos).map((equipo, index) => (
                                         <tr key={index}>
-                                            <td className="border px-4 py-2">{equipo.nombre}</td>
-                                            <td className="border px-4 py-2">{equipo.puntos}</td>
-                                            <td className="border px-4 py-2">{equipo.jugados}</td>
-                                            <td className="border px-4 py-2">{equipo.ganados}</td>
-                                            <td className="border px-4 py-2">{equipo.empatados}</td>
-                                            <td className="border px-4 py-2">{equipo.perdidos}</td>
-                                            <td className="border px-4 py-2">{equipo.golesAFavor}</td>
-                                            <td className="border px-4 py-2">{equipo.golesEnContra}</td>
-                                            <td className="border px-4 py-2">{equipo.diferenciaGoles}</td>
+                                            <td className="px-4 py-2 border">{equipo.nombre}</td>
+                                            <td className="px-4 py-2 font-bold border">{equipo.puntos}</td>
+                                            <td className="px-4 py-2 border">{equipo.jugados}</td>
+                                            <td className="px-4 py-2 border">{equipo.ganados}</td>
+                                            <td className="px-4 py-2 border">{equipo.empatados}</td>
+                                            <td className="px-4 py-2 border">{equipo.perdidos}</td>
+                                            <td className="px-4 py-2 border">{equipo.golesAFavor}</td>
+                                            <td className="px-4 py-2 border">{equipo.golesEnContra}</td>
+                                            <td className="px-4 py-2 border">{equipo.diferenciaGoles}</td>
                                         </tr>
                                     ))}
                                 </tbody>
